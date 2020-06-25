@@ -1,0 +1,24 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars: 
+    ami_id: "ami-0e34e7b9ca0ace12d"
+  module_defaults: 
+    group/aws: 
+      region: "us-west-2"
+  tasks: 
+    - name: Provision Molly's EC2 instance
+      ec2: 
+        key_name: mpa0012-cloud-computing
+        group: Module5-developer-sg
+        instance_type: t3.nano
+        image: "{{ ami_id  }}"
+        instance_tags: 
+          Name: Module5 Molly
+          Module: 5
+        wait: yes
+        vpc_subnet_id: "{{ public_subnet.subnet.id }}"
+        assign_public_ip: yes
+        exact_count: 1
+        count_tag: 
+          Name: Module5 Molly

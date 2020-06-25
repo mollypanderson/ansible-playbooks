@@ -1,0 +1,6 @@
+---
+all: 
+  hosts: 
+    ec2-44-226-206-119.us-west-2.compute.amazonaws.com:
+    
+      
