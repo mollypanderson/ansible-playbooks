@@ -7,59 +7,123 @@
   tasks: 
     - name: Create VPC
       ec2_vpc_net: 
-        name: Module5
-        cidr_block: 10.10.0.0/16
+        name: m5-image-gallery-vpc
+        cidr_block: 10.0.0.0/16
         tags: 
           Module: 5
+          Name: m5-image-gallery-vpc
         state: present
       register: vpc
     - name: debug
       debug: var=vpc
-    - name: Create public subnet
+    - name: Create public subnet one
       ec2_vpc_subnet: 
         tags: 
-          Name: Module5 public
+          Name: m5-ig-public-1-sn
           Module: 5
         vpc_id: "{{ vpc.vpc.id  }}"
-        cidr: 10.10.0.0/24
+        cidr: 10.0.5.0/24
         state: present
-      register: public_subnet
-    - name: Create private subnet
+      register: public_subnet_1
+    - name: Create public subnet two
       ec2_vpc_subnet:
         tags:
-          Name: Module5 private
+          Name: m5-ig-public-2-sn
           Module: 5
         vpc_id: "{{ vpc.vpc.id  }}"
-        cidr: 10.10.1.0/24
+        cidr: 10.0.6.0/24
         state: present
-      register: private_subnet
+      register: public_subnet_2
+    - name: Create private subnet one
+      ec2_vpc_subnet:
+        tags:
+          Name: m5-ig-private-1-sn
+          Module: 5
+        vpc_id: "{{ vpc.vpc.id  }}"
+        cidr: 10.0.7.0/24
+        state: present
+      register: private_subnet_1
+    - name: Create private subnet two
+      ec2_vpc_subnet:
+        tags:
+          Name: m5-ig-private-2-sn
+          Module: 5
+        vpc_id: "{{ vpc.vpc.id  }}"
+        cidr: 10.0.8.0/24
+        state: present
+      register: private_subnet_2
     - name: Create internet gateway
       ec2_vpc_igw: 
         vpc_id: "{{ vpc.vpc.id  }}"
         tags: 
-          Name: Module5 gateway
+          Name: m5-igw
         state: present
       register: igw
+    - name: Create NAT gateway
+      ec2_vpc_nat_gateway:
+        subnet_id: "{{ public_subnet_1.subnet.id  }}"
+        wait: yes
+        if_exist_do_not_create: true
+        state: present
+      register: nat_gateway
     - name: Create public route table
       ec2_vpc_route_table: 
         vpc_id: "{{ vpc.vpc.id }}"
         tags: 
-          Name: Module5
+          Name: m5-ig-public-rtb
         subnets: 
-          - "{{ public_subnet.subnet.id }}"
+          - "{{ public_subnet_1.subnet.id }}"
+          - "{{ public_subnet_2.subnet.id }}"
         routes:
+          - dest: 10.0.0.0/16
+            gateway_id: local
           - dest: 0.0.0.0/0
             gateway_id: "{{ igw.gateway_id }}"
-    - name: Create security group
-      ec2_group: 
-        name: Module5-developer-sg
-        description: Developer security group
-        vpc_id: "{{ vpc.vpc.id }}" 
-        rules: 
-          - proto: tcp
-            ports: 
-              - 22
-              - 80
-            cidr_ip: 0.0.0.0/0
-            rule_desc: allow all to ports 22 and 80
-        state: present
+    - name: Create private route table
+      ec2_vpc_route_table: 
+        vpc_id: "{{ vpc.vpc.id }}"
+        tags: 
+          Name: m5-ig-private-rtb
+        subnets: 
+          - "{{ private_subnet_1.subnet.id }}"
+          - "{{ private_subnet_2.subnet.id }}"
+        routes:
+          - dest: 10.0.0.0/16
+            gateway_id: local
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ nat_gateway.nat_gateway_id }}"
+    - name: Create public network ACL
+      ec2_vpc_nacl: 
+        vpc_id: "{{ vpc.vpc.id }}"
+        name: m5-ig-public-acl
+        tags:
+          Name: m5-ig-public-acl
+        subnets: ['public_subnet_1', 'public_subnet_2']
+        ingress: 
+          - [100, 'tcp', 'allow', '71.212.211.194/32', null, null, 5000, 5000]
+          - [110, 'tcp', 'allow', '24.196.25.139/32', null, null, 5000, 5000]
+          - [120, 'tcp', 'allow', '24.239.105.213/32', null, null, 5000, 5000]
+          - [130, 'tcp', 'allow', '0.0.0.0/0', null, null, 22, 22]
+          - [140, 'tcp', 'allow', '0.0.0.0/0', null, null, 1024, 65535]
+          - [150, 'tcp', 'allow', '0.0.0.0/0', null, null, 80, 80]
+        egress: 
+          - [100, 'tcp', 'allow', '0.0.0.0/0', null, null, 1024, 65535]
+          - [110, 'tcp', 'allow', '0.0.0.0/0', null, null, 80, 80]
+          - [120, 'tcp', 'allow', '0.0.0.0/0', null, null, 443, 443]
+        state: 'present'
+    - name: Create private network ACL
+      ec2_vpc_nacl: 
+        vpc_id: "{{ vpc.vpc.id }}"
+        name: m5-ig-private-acl
+        tags:
+          Name: m5-ig-private-acl
+        subnets: ['private_subnet_1', 'private_subnet_2']
+        ingress: 
+          - [100, 'tcp', 'allow', '10.0.0.0/16', null, null, 5432, 5432]
+          - [110, 'tcp', 'allow', '10.0.5.0/24', null, null, 22, 22]
+          - [120, 'tcp', 'allow', '10.0.0.0/16', null, null, 443, 443]
+        egress: 
+          - [100, 'tcp', 'allow', '10.0.0.0/16', null, null, 1024, 65535]
+          - [110, 'tcp', 'allow', '0.0.0.0/0', null, null, 443, 443]
+        state: 'present'
+       
