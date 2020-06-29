@@ -140,7 +140,7 @@
     - name: Create m5-ig-postgres security group
       ec2_group:
         name: m5-ig-postgres
-        description: ig postgres tag security group
+        description: m5 ig postgres security group
         vpc_id: "{{ vpc.vpc.id }}"
         rules:
           - proto: tcp
@@ -148,7 +148,7 @@
               - 8080 
               - 5432
             group_name: 
-              - "{{ m5_ig_postgres_tag.group_id }}"
+              - "{{ m5_ig_postgres_tag.group_name }}"
             group_desc: m5 ig postgres tag security group
           - proto: tcp
             ports: 
@@ -167,7 +167,7 @@
               - 5432
               - 443
             group_name: 
-              - "{{ m5_ig_postgres.group_id }}"
+              - "{{ m5_ig_postgres.group_name }}"
         state: present
     - name: Create m5 ig development security group
       ec2_group:
@@ -239,7 +239,7 @@
             ports: 
               - 443
             group_name:
-              - "{{ m5_secrets_manager_tag.group_id }}"
+              - "{{ m5_secrets_manager_tag.group_name }}"
             group_desc: m5 secrets manager tag
         state: present
       register: m5_secrets_manager
@@ -253,6 +253,6 @@
             ports:
               - 443
             group_name:
-              - "{{ m5_secrets_manager.group_id }}"
+              - "{{ m5_secrets_manager.group_name }}"
             group_desc: m5 secrets manager group
         state: present

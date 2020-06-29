@@ -37,7 +37,7 @@
     - name: Create auto scaling group 
       ec2_asg: 
         name: m5-image-gallery-asg
-        availability_zones: [ 'us-west-2b' ]
+        availability_zones: [ 'us-west-2a', 'us-west-2b' ]
         launch_template:
           launch_template_id: "{{ m5_image_gallery_lt.template.launch_template_id }}"
           version: "$Latest"
