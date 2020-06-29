@@ -1,4 +1,9 @@
 ---
+- hosts: localhost
+  gather_facts: no
+  module_defaults:
+    group/aws:
+      region: "us-west-2"
 - rds_subnet_group: 
     state: present
     name: m5-ig-private-dbgrp

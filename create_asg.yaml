@@ -1,0 +1,54 @@
+---
+- hosts: localhost
+  gather_facts: no
+  module_defaults:
+    group/aws:
+      region: "us-west-2"
+  tasks:
+    - name: Create launch template
+      ec2_launch_template: 
+        name: m5-image-gallery-lt
+        image_id: "ami-0e34e7b9ca0ace12d"
+        key_name: mpa0012-cloud-computing
+        instance_type: t3.micro
+        network_interfaces:
+          - device_index: 0
+            associate_public_ip_address: yes 
+            groups: ['{{ m5_ig_postgres_tag.group_id }}', '{{ m5_ig_development.group_id }}', '{{ m5_nginx_servers.group_id }}', '{{ m5_secrets_manager_tag.group_id }}']
+            description: public network interface for image gallery
+        tags: 
+          Name: m5-image-gallery-asg
+        user_data: "{{ lookup('file', './startup-scripts/lt_startup.sh') | b64encode }}"
+        state: present
+      register: m5_image_gallery_lt
+    - name: Create target group
+      elb_target_group: 
+        name: m5-image-gallery-tg
+        protocol: tcp
+        vpc_id: "{{ vpc['vpc']['id'] }}"
+        health_check_path: /
+        port: 80
+        stickiness_enabled: no
+        stickiness_type: source_ip
+        wait_timeout: 200
+        wait: true
+        state: present
+      register: m5_image_gallery_tg
+    - name: Create auto scaling group 
+      ec2_asg: 
+        name: m5-image-gallery-asg
+        availability_zones: [ 'us-west-2b' ]
+        launch_template:
+          launch_template_id: "{{ m5_image_gallery_lt.template.launch_template_id }}"
+          version: "$Latest"
+        desired_capacity: 2
+        min_size: 2
+        max_size: 4
+        target_group_arns: 
+          - "{{ m5_image_gallery_tg.target_group_arn }}"
+        vpc_zone_identifier: [ '{{ public_subnet_1.subnet.id }}', '{{ public_subnet_2.subnet.id }}' ]
+        health_check_type: EC2
+        health_check_period: 300
+        wait_for_instances: yes
+        state: present
+      register: m5_image_gallery_asg
