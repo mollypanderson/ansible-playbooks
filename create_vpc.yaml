@@ -23,6 +23,7 @@
           Module: 5
         vpc_id: "{{ vpc.vpc.id  }}"
         cidr: 10.0.5.0/24
+        az: us-west-2a
         state: present
       register: public_subnet_1
     - name: Create public subnet two
@@ -32,6 +33,7 @@
           Module: 5
         vpc_id: "{{ vpc.vpc.id  }}"
         cidr: 10.0.6.0/24
+        az: us-west-2b
         state: present
       register: public_subnet_2
     - name: Create private subnet one
@@ -41,6 +43,7 @@
           Module: 5
         vpc_id: "{{ vpc.vpc.id  }}"
         cidr: 10.0.7.0/24
+        az: us-west-2a
         state: present
       register: private_subnet_1
     - name: Create private subnet two
@@ -50,6 +53,7 @@
           Module: 5
         vpc_id: "{{ vpc.vpc.id  }}"
         cidr: 10.0.8.0/24
+        az: us-west-2b
         state: present
       register: private_subnet_2
     - name: Create internet gateway
@@ -126,4 +130,129 @@
           - [100, 'tcp', 'allow', '10.0.0.0/16', null, null, 1024, 65535]
           - [110, 'tcp', 'allow', '0.0.0.0/0', null, null, 443, 443]
         state: 'present'
-       
+    - name: Create m5-ig-postgres-tag sg
+      ec2_group: 
+        name: m5-ig-postgres-tag
+        description: m5-ig-postgres-tag security group
+        vpc_id: "{{ vpc.vpc.id }}"
+        state: 'present'
+      register: m5_ig_postgres_tag
+    - name: Create m5-ig-postgres security group
+      ec2_group:
+        name: m5-ig-postgres
+        description: ig postgres tag security group
+        vpc_id: "{{ vpc.vpc.id }}"
+        rules:
+          - proto: tcp
+            ports:
+              - 8080 
+              - 5432
+            group_name: 
+              - "{{ m5_ig_postgres_tag.group_id }}"
+            group_desc: m5 ig postgres tag group
+          - proto: tcp
+            ports: 
+              - 443
+            cidr_ip: 0.0.0.0/0
+        state: 'present'
+      register: m5_ig_postgres 
+    - name: Update m5-ig-postgres-tag security group
+      ec2_group:
+        name: m5-ig-postgres-tag
+        description: ig postgres tag security group
+        vpc_id: "{{ vpc.vpc.id }}"
+        rules_egress:
+          - proto: tcp
+            ports: 
+              - 5432
+              - 443
+            group_name: 
+              - "{{ m5_ig_postgres.group_id }}"
+        state: present
+    - name: Create m5 ig development security group
+      ec2_group:
+        name: m5-ig-development
+        description: ig development security group
+        vpc_id: "{{ vpc.vpc.id }}"
+        rules:
+          - proto: tcp
+            ports:
+              - 80
+              - 5000
+            cidr_ip: 
+              - 71.212.211.194/32
+              - 24.196.25.139/32
+              - 24.239.105.213/32
+          - proto: tcp
+            ports:
+              - 22
+            cidr_ip: 0.0.0.0/0
+        rules_egress: 
+          - proto: tcp
+            ports: 
+              - 80
+              - 22
+              - 443
+            cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            ports: 
+              - 5000
+            cidr_ip: 
+              - 71.212.211.194/32
+              - 24.196.25.139/32
+              - 24.239.105.213/32
+        state: present 
+      register: m5_ig_development
+    - name: Create nginx-servers security group
+      ec2_group:
+        name: m5-nginx-servers
+        description: nginx servers security group
+        vpc_id: "{{ vpc.vpc.id }}"
+        rules:
+          - proto: tcp
+            ports:
+              - 80
+            cidr_ip: 
+              - 71.212.211.194/32
+              - 24.196.25.139/32
+              - 24.239.105.213/32
+          - proto: tcp
+            ports: 
+              - 22
+            cidr_ip: 0.0.0.0/0
+        state: present      
+      register: m5_nginx_servers
+    - name: Create m5-secrets-manager-tag sg
+      ec2_group:
+        name: m5-secrets-manager-tag
+        description: m5-secrets-manager-tag security group
+        vpc_id: "{{ vpc.vpc.id }}"
+        state: 'present'
+      register: m5_secrets_manager_tag
+    - name: Create m5-secrets-manager security group
+      ec2_group:
+        name: m5-secrets-manager
+        description: m5 secrets manager security group
+        vpc_id: "{{ vpc.vpc.id }}"
+        rules:
+          - proto: tcp
+            ports: 
+              - 443
+            group_name:
+              - "{{ m5_secrets_manager_tag.group_id }}"
+            group_desc: m5 secrets manager tag
+        state: present
+      register: m5_secrets_manager
+    - name: Update secrets-manager-tag security group
+      ec2_group:
+        name: m5-secrets-manager-tag
+        description: m5-secrets-manager-tag security group
+        vpc_id: "{{ vpc.vpc.id }}"
+        rules_egress:
+          - proto: tcp
+            ports:
+              - 443
+            group_name:
+              - "{{ m5_secrets_manager.group_id }}"
+            group_desc: m5 secrets manager group
+        state: present

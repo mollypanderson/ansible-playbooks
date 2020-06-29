@@ -7,18 +7,18 @@
     group/aws: 
       region: "us-west-2"
   tasks: 
-    - name: Provision Molly's EC2 instance
+    - name: Provision image gallery EC2 instance
       ec2: 
         key_name: mpa0012-cloud-computing
-        group: Module5-developer-sg
+        group: ['ig-postgres-tag', 'ig-development', 'nginx-servers', 'secrets-manager-tag']
         instance_type: t3.nano
         image: "{{ ami_id  }}"
         instance_tags: 
-          Name: Module5 Molly
+          Name: m5-image-gallery
           Module: 5
         wait: yes
-        vpc_subnet_id: "{{ public_subnet.subnet.id }}"
+        vpc_subnet_id: "{{ public_subnet_1.subnet.id }}"
         assign_public_ip: yes
         exact_count: 1
         count_tag: 
-          Name: Module5 Molly
+          Name: m5-image-gallery
